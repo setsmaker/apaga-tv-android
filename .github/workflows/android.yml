@@ -25,10 +25,18 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Recopilar mandos de TV CC0
+        shell: bash
+        run: |
+          git clone --quiet --depth 1 --filter=blob:none --sparse https://github.com/Lucaslhm/Flipper-IRDB.git /tmp/flipper-irdb
+          git -C /tmp/flipper-irdb sparse-checkout set TVs
+          python3 tools/generate_catalog.py
       - name: Compilar APK de instalación
         run: gradle --no-daemon assembleDebug
       - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
           name: ApagaTV-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            ir-catalog-report.txt
