@@ -77,6 +77,9 @@ public final class IrCodes {
                             ((long)c << 8) | (c ^ 255);
                 return new Signal(protocol, 38000, necFrame(code, true));
             }
+            case "RC5":
+            case "RC5X":
+                return rc5(address, command);
             case "SIRC":
                 return new Signal(protocol, 40000, sony(address, command, 12));
             case "SIRC15":
@@ -86,6 +89,50 @@ public final class IrCodes {
             default:
                 throw new IllegalArgumentException("IR unsupported: " + protocol);
         }
+    }
+
+
+    /** Philips RC-5 / extended RC-5, Manchester encoding at 36 kHz. */
+    public static Signal rc5(int address, int command) {
+        if (address < 0 || address > 31 || command < 0 || command > 127)
+            throw new IllegalArgumentException("RC5 fuera de rango");
+        int[] bits = new int[14];
+        bits[0] = 1;
+        bits[1] = (command & 64) != 0 ? 0 : 1;
+        bits[2] = 0; // one press; the receiver's RC5 toggle is fixed in this preview.
+        for (int i = 0; i < 5; i++) bits[3+i] = (address >>> (4-i)) & 1;
+        for (int i = 0; i < 6; i++) bits[8+i] = (command >>> (5-i)) & 1;
+        java.util.ArrayList<Boolean> halves = new java.util.ArrayList<>();
+        for (int bit : bits) {
+            // RC5 1 = space -> mark; 0 = mark -> space.
+            halves.add(bit == 0);
+            halves.add(bit == 1);
+        }
+        java.util.ArrayList<Integer> durations = new java.util.ArrayList<>();
+        boolean started = false;
+        boolean previous = false;
+        int run = 0;
+        for (boolean isMark : halves) {
+            if (!started) {
+                if (!isMark) continue;
+                started = true; previous = true; run = 889;
+            } else if (isMark == previous) {
+                run += 889;
+            } else {
+                durations.add(run);
+                run = 889;
+                previous = isMark;
+            }
+        }
+        if (previous) {
+            durations.add(run);
+            durations.add(28000);
+        } else {
+            durations.add(run+28000);
+        }
+        int[] out = new int[durations.size()];
+        for (int i = 0; i < out.length; i++) out[i] = durations.get(i);
+        return new Signal("RC5", 36000, out);
     }
 
     /** Philips Pronto '0000' raw hex only (not RC5 compact '5000'). */
