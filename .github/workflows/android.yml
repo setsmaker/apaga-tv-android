@@ -31,6 +31,12 @@ jobs:
           git clone --quiet --depth 1 --filter=blob:none --sparse https://github.com/Lucaslhm/Flipper-IRDB.git /tmp/flipper-irdb
           git -C /tmp/flipper-irdb sparse-checkout set TVs Universal_TV_Remotes
           python3 tools/generate_catalog.py
+      - name: Verificar patrones IR en Java
+        shell: bash
+        run: |
+          mkdir -p /tmp/apagatv-tests
+          javac -d /tmp/apagatv-tests app/src/main/java/es/apagatv/IrCodes.java tests/IrCodesCheck.java
+          java -cp /tmp/apagatv-tests IrCodesCheck
       - name: Compilar APK de instalación
         run: gradle --no-daemon assembleDebug
       - name: Publicar APK
