@@ -1,30 +1,46 @@
-# Apaga TV — Android
+# Apaga TV Universal — Android
 
-App Android sin anuncios, sin conexión a Internet y sin registro. Una sola pulsación envía sucesivamente señales infrarrojas para Samsung, LG, Sony, Philips y Xiaomi. Puedes probar cada fabricante por separado y guardar qué marcas quieres incluir.
+Aplicación Android para enviar señales infrarrojas de apagado desde un solo botón, sin Internet, publicidad ni registro.
 
-## Descargar APK desde el móvil
+**Marcas principales:** Samsung, LG, Sony, Xiaomi, Philips, TCL, Hisense y Panasonic. Pulsa **Otras marcas** para consultar el catálogo completo (más de 100 fabricantes en la compilación de octubre de 2026). La cantidad exacta figura en la app y en `ir-catalog-report.txt`.
 
-1. Abre la pestaña **Actions** de este repositorio.
-2. Selecciona **Compilar APK Android** y abre la ejecución con ✓ verde.
-3. Desplázate a **Artifacts** y pulsa **ApagaTV-apk**.
-4. En el ZIP descargado, abre **app-debug.apk** para instalarla. Android puede pedir permiso para instalar apps desde Chrome o tu gestor de archivos.
+## Descargar desde el móvil
 
-Si no aparece ninguna ejecución, entra en **Actions → Compilar APK Android → Run workflow → Run workflow**.
+1. Entra en **Actions** de este repositorio.
+2. Abre la última ejecución verde de **Compilar APK Android**.
+3. Abajo, en **Artifacts**, descarga **ApagaTV-apk**.
+4. Descomprime el ZIP y abre `app-debug.apk`.
+5. Android puede pedir autorización para instalar desde Chrome o desde el gestor de archivos.
 
-## Uso
+## Cómo funciona
 
-Abre Apaga TV, apunta el emisor infrarrojo del móvil hacia el sensor de la televisión y pulsa **APAGAR TODAS**. No hay que elegir un mando. Los botones **Probar** permiten comprobar cada fabricante.
+La app distingue dos categorías de señales:
 
-Samsung, LG y Sony incluyen códigos de apagado específicos. Philips depende del modelo. Xiaomi utiliza un código POWER que **puede encender el aparato si ya estaba apagado**; por eso empieza desmarcada. Puedes activarla tras comprobar su comportamiento.
+- **OFF:** comandos etiquetados como apagado independiente. Se envían al pulsar «APAGAR TODAS». Esta etiqueta procede de la base o de una fuente documentada, pero no garantiza compatibilidad con todos los modelos.
+- **POWER (alternativo):** el botón normal de encendido/apagado. Puede **encender una televisión que ya estuviera apagada**. Solo se transmite manualmente desde «Probar», nunca en la secuencia automática.
 
-Los infrarrojos no atraviesan paredes, así que no puede apagar televisiones de habitaciones distintas con una sola emisión, salvo que todas reciban la señal directa.
+En cada marca se pueden recorrer los códigos y **guardar los OFF comprobados**. Cuando hay códigos OFF guardados para una marca, el botón universal los prioriza. Puedes guardar varios para distintos televisores.
 
-## Compilación local
+Es necesario orientar el móvil hacia el receptor infrarrojo de la TV: la señal no atraviesa paredes. Se requiere un móvil Android que exponga el hardware mediante `ConsumerIrManager`.
 
-Abre el proyecto en Android Studio con Java 17, Android SDK 35, Gradle 8.9 y Android Gradle Plugin 8.7.3. Ejecuta `gradle assembleDebug`.
+## Bases de datos y fuentes
 
-APK: `app/build/outputs/apk/debug/app-debug.apk`.
+- [Flipper-IRDB](https://github.com/Lucaslhm/Flipper-IRDB) — colección de señales `.ir` bajo licencia **CC0 1.0**. Se importan códigos válidos de los protocolos soportados: NEC, NECext, Samsung32, Sony SIRC 12/15/20, Philips RC5 y parte de los RAW. Se excluyen los protocolos que esta versión aún no sabe transmitir correctamente.
+- [Samsung: códigos OFF](https://community.home-assistant.io/t/ir-remote-transmitter-discrete-codes-for-samsung-lcd-on-off/215925) — `E0E019E6`.
+- [LG: códigos OFF](https://gist.github.com/ledoge/ab78723efdaa00e6815e30d1792790fd) — `20DFA35C`.
+- [TCL: códigos OFF](https://gist.github.com/DDRBoxman/c68b68e41a47338496ba8cbd1bb5d20e) — `57E318E7`.
+- [Hisense: códigos OFF](https://hawkins.id.au/posts/discrete_ir_for_hisense_tv/) — `00FD8B74`.
+- [Sony: SIRC OFF](https://github.com/Flameeyes/pysirc/blob/main/examples/circuitpython/sony-remote.py) — TV 1, comando 47.
+- [RemoteCentral](https://files.remotecentral.com/library/3-1/index.html) — referencia para códigos discretos de otros modelos.
 
-## Avisos
+La fuente de código de Flipper se descarga al compilar con GitHub Actions. Otros repertorios como `probonopd/irdb` tienen condiciones de licencia adicionales y **no** se han incorporado automáticamente.
 
-Los códigos no están comprobados físicamente en tus modelos concretos. La app no puede saber si un televisor se ha apagado. Necesita un móvil con `ConsumerIrManager` que exponga el emisor IR a las aplicaciones Android.
+## Compilación
+
+GitHub Actions ejecuta `tools/generate_catalog.py`, comprueba patrones IR con `tests/IrCodesCheck.java` y compila mediante Android SDK 35 / Java 17 / Gradle 8.9.
+
+Este APK utiliza una firma de desarrollo de GitHub Actions; si ya instalaste una versión anterior con otra firma, **desinstala primero la anterior**. No se mantienen las preferencias al desinstalar.
+
+## Limitaciones
+
+Un código listado como OFF puede no funcionar en un modelo concreto. No hay confirmación de estado de la TV a través de infrarrojos. Algunos modelos no tienen código OFF independiente o solo responden por Bluetooth, Wi-Fi o con el mando original. Xiaomi y otras marcas pueden aparecer con POWER pero sin OFF.
