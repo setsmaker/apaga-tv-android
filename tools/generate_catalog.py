@@ -6,13 +6,16 @@ from collections import defaultdict,Counter
 root=Path("/tmp/flipper-irdb/TVs")
 out=Path("app/src/main/assets")
 out.mkdir(parents=True,exist_ok=True)
-valid={"NEC","NECext","Samsung32","SIRC","SIRC15","SIRC20"}
+valid={"NEC","NECext","Samsung32","SIRC","SIRC15","SIRC20","RC5","RC5X"}
 off=re.compile(r"^(?:power[ _-]*off|off[ _-]*power|off|turn[ _-]*off|power[ _-]*down)(?: *\\(discrete\\))?$",re.I)
 toggle=re.compile(r"^(?:power|pwr|on[ /_-]*off|power[ /_-]*on[ /_-]*off|power[ _-]*toggle|standby|lg[ _-]*on[ /_-]*off|tv[ _-]*power)$",re.I)
 rows={}; skip=Counter(); files=0
-for path in sorted(root.rglob("*.ir")):
+extra=Path("/tmp/flipper-irdb/Universal_TV_Remotes/UNIVERSAL_POWER_OFF_DEVICES.ir")
+paths=sorted(root.rglob("*.ir"))
+if extra.exists(): paths.append(extra)
+for path in paths:
     files+=1
-    brand=path.relative_to(root).parts[0].replace("|"," ")
+    brand=path.relative_to(root).parts[0].replace("|"," ") if path != extra else "Universal"
     source=path.stem.replace("|"," ").replace("\n"," ")
     try: content=path.read_text(encoding="utf-8-sig",errors="replace")
     except OSError: continue
@@ -23,7 +26,9 @@ for path in sorted(root.rglob("*.ir")):
             if not line.startswith("#") and ":" in line:
                 k,v=line.split(":",1);data[k.strip().lower()]=v.strip()
         name=data.get("name","").strip()
-        mode="OFF" if off.fullmatch(name) else ("TOGGLE" if toggle.fullmatch(name) else None)
+        if path == extra:
+            brand=name.title().replace("Phillips","Philips")
+        mode="TOGGLE" if path == extra else ("OFF" if off.fullmatch(name) else ("TOGGLE" if toggle.fullmatch(name) else None))
         if not mode: continue
         typ=data.get("type","").lower()
         if typ=="parsed":
@@ -44,7 +49,8 @@ for path in sorted(root.rglob("*.ir")):
                 timings=list(map(int,data["data"].split()))
             except (KeyError,ValueError):
                 skip[(mode,"bad raw")]+=1;continue
-            if not 30000<=frequency<=60000 or len(timings)<4 or len(timings)%2 or any(x<=0 for x in timings) or sum(timings)>1800000:
+            if len(timings)%2: timings.append(28000)
+            if not 30000<=frequency<=60000 or len(timings)<4 or any(x<=0 for x in timings) or sum(timings)>1800000:
                 skip[(mode,"invalid raw")]+=1;continue
             fields=("RAW","","",str(frequency),",".join(map(str,timings)))
         else:
