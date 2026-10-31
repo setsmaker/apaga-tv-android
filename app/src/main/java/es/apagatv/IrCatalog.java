@@ -98,6 +98,12 @@ public final class IrCatalog {
         add("LG", "OFF", "LG webOS · DSC_IR_KEY_PWROFF",
                 new IrCodes.Signal("LG OFF", 38000,
                         IrCodes.necFrame(0x20DFA35CL, false)));
+        add("TCL", "OFF", "TCL TV NEC · apagado independiente 57E318E7 · DDRBoxman",
+                new IrCodes.Signal("TCL OFF", 38000,
+                        IrCodes.necFrame(0x57E318E7L, false)));
+        add("Hisense", "OFF", "Hisense NEC · apagado independiente 00FD8B74 · Hawkins",
+                new IrCodes.Signal("Hisense OFF", 38000,
+                        IrCodes.necFrame(0x00FD8B74L, false)));
         add("Sony", "OFF", "Sony TV · SIRC address 1, command 47",
                 IrCodes.parsed("SIRC", 1, 47));
         add("Philips", "OFF", "Philips LCD · Pronto independiente",
