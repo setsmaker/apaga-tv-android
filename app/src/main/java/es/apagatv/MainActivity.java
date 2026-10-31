@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.Set;
 
 public final class MainActivity extends Activity {
-    private static final String[] HOME = {"Samsung", "LG", "Sony", "Xiaomi", "Philips"};
+    private static final String[] HOME = {"Samsung", "LG", "Sony", "Xiaomi", "Philips", "TCL", "Hisense", "Panasonic"};
     private static final int BG = Color.rgb(11, 19, 32);
     private static final int PANEL = Color.rgb(29, 42, 61);
     private static final int WHITE = Color.rgb(237, 241, 249);
