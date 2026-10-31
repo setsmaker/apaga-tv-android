@@ -1,8 +1,10 @@
 package es.apagatv;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -17,200 +19,306 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-/** Un botón envía los códigos de todas las marcas seleccionadas. */
 public final class MainActivity extends Activity {
-    private static final String[] BRANDS = {"Samsung", "LG", "Sony", "Philips", "Xiaomi"};
-    private static final int BG = Color.rgb(12, 20, 34);
-    private static final int PANEL = Color.rgb(26, 38, 57);
-    private static final int WHITE = Color.rgb(234, 240, 248);
-    private static final int GRAY = Color.rgb(166, 183, 201);
+    private static final String[] HOME = {"Samsung", "LG", "Sony", "Xiaomi", "Philips"};
+    private static final int BG = Color.rgb(11, 19, 32);
+    private static final int PANEL = Color.rgb(29, 42, 61);
+    private static final int WHITE = Color.rgb(237, 241, 249);
+    private static final int DIM = Color.rgb(167, 184, 200);
     private static final int RED = Color.rgb(237, 80, 97);
-    private static final int GREEN = Color.rgb(126, 222, 173);
-    private ConsumerIrManager ir;
+    private static final int GREEN = Color.rgb(131, 223, 172);
     private SharedPreferences prefs;
-    private final Map<String, CheckBox> selected = new LinkedHashMap<>();
-    private Button mainButton;
+    private ConsumerIrManager ir;
+    private IrCatalog catalog;
+    private final Map<String, CheckBox> checked = new LinkedHashMap<>();
+    private Button bigButton;
     private TextView status;
-    private TextView detail;
-    private boolean sending = false;
+    private TextView stats;
+    private LinearLayout otherBrands;
+    private boolean sending;
 
-    @Override public void onCreate(Bundle b) {
-        super.onCreate(b);
+    @Override public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
-        ir = (ConsumerIrManager) getSystemService(CONSUMER_IR_SERVICE);
-        prefs = getSharedPreferences("tv_brands", Context.MODE_PRIVATE);
+        prefs = getSharedPreferences("settings_v2", Context.MODE_PRIVATE);
+        ir = (ConsumerIrManager)getSystemService(CONSUMER_IR_SERVICE);
+        catalog = new IrCatalog(this);
         boolean ready = ir != null && ir.hasIrEmitter();
-        ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(BG);
+        ScrollView sv = new ScrollView(this);
+        sv.setBackgroundColor(BG);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(22), dp(26), dp(22), dp(25));
-        scroll.addView(root);
+        root.setPadding(dp(20), dp(24), dp(20), dp(34));
+        sv.addView(root);
 
-        add(root, label("APAGA TV  ·  IR UNIVERSAL", 13, GREEN, Typeface.BOLD), 15);
-        add(root, label("Un botón.\nCinco marcas.", 32, WHITE, Typeface.BOLD), 9);
-        add(root, label("Apunta el móvil hacia la televisión y pulsa el botón.", 15, GRAY, 0), 25);
-
-        mainButton = new Button(this);
-        mainButton.setText("⏻  APAGAR TODAS");
-        mainButton.setTextColor(Color.WHITE);
-        mainButton.setTextSize(21);
-        mainButton.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        mainButton.setAllCaps(false);
-        mainButton.setBackground(bg(RED, 22));
-        mainButton.setElevation(dp(6));
-        mainButton.setEnabled(ready);
-        addHeight(root, mainButton, 106, 18);
-
-        status = label(ready ? "Emisor de infrarrojos disponible" :
-                "Android no detecta un emisor infrarrojo compatible", 14,
-                ready ? GREEN : RED, 0);
-        status.setGravity(Gravity.CENTER_HORIZONTAL);
-        add(root, status, 5);
-        detail = label("", 13, GRAY, 0);
-        detail.setGravity(Gravity.CENTER_HORIZONTAL);
-        add(root, detail, 26);
-
-        add(root, label("MARCAS", 13, GRAY, Typeface.BOLD), 10);
-        add(root, label("Activa las que quieras. La selección se guarda en el móvil.",
-                14, GRAY, 0), 11);
-        for (String brand : BRANDS) {
-            LinearLayout box = new LinearLayout(this);
-            box.setOrientation(LinearLayout.VERTICAL);
-            box.setPadding(dp(12), dp(8), dp(12), dp(8));
-            box.setBackground(bg(PANEL, 13));
-            LinearLayout row = new LinearLayout(this);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            box.addView(row);
-            CheckBox checkbox = new CheckBox(this);
-            checkbox.setText(brand);
-            checkbox.setTextColor(WHITE);
-            checkbox.setTextSize(18);
-            checkbox.setButtonTintList(android.content.res.ColorStateList.valueOf(GREEN));
-            checkbox.setChecked(prefs.getBoolean(brand, !"Xiaomi".equals(brand)));
-            checkbox.setOnCheckedChangeListener((button, checked) ->
-                prefs.edit().putBoolean(brand, checked).apply());
-            row.addView(checkbox, new LinearLayout.LayoutParams(0, dp(52), 1f));
-            selected.put(brand, checkbox);
-
-            Button test = new Button(this);
-            test.setText("Probar");
-            test.setAllCaps(false);
-            test.setTextColor(Color.WHITE);
-            test.setBackground(bg(Color.rgb(58, 73, 95), 11));
-            test.setEnabled(ready);
-            row.addView(test, new LinearLayout.LayoutParams(dp(88), dp(42)));
-            test.setOnClickListener(v -> {
-                ArrayList<String> one = new ArrayList<>();
-                one.add(brand); send(one);
-            });
-            if ("Xiaomi".equals(brand)) {
-                add(box, label("Desmarcada inicialmente: POWER puede encender una TV apagada.",
-                        12, GRAY, 0), 2);
-            } else if ("Philips".equals(brand)) {
-                add(box, label("Depende del modelo de televisión.", 12, GRAY, 0), 2);
-            }
-            add(root, box, 8);
+        add(root, label("APAGA TV   ·   INFRARROJOS", 13, GREEN, true), 11);
+        add(root, label("Un botón. Muchas teles.", 29, WHITE, true), 8);
+        add(root, label("Envía códigos de apagado exclusivos de las marcas seleccionadas. No hace falta elegir un mando.", 15, DIM, false), 19);
+        bigButton = button("⏻   APAGAR TODAS", RED, 21);
+        bigButton.setEnabled(ready);
+        addHeight(root, bigButton, 100, 12);
+        status = label(ready ? "Emisor infrarrojo disponible" : "Este móvil no expone el emisor infrarrojo a Android", 14, ready ? GREEN : RED, false);
+        status.setGravity(Gravity.CENTER);
+        add(root, status, 7);
+        stats = label("Catálogo: " + catalog.offTotal() + " apagados específicos · " +
+                catalog.toggleTotal() + " botones POWER para prueba", 13, DIM, false);
+        stats.setGravity(Gravity.CENTER);
+        add(root, stats, 23);
+        add(root, label("TUS MARCAS", 13, GREEN, true), 8);
+        add(root, label("Selecciona las que quieres incluir en el botón universal.", 14, DIM, false), 10);
+        for (String brand : HOME) {
+            addBrand(root, brand, ready);
         }
-        add(root, label("ATENCIÓN", 13, GREEN, Typeface.BOLD), 8);
-        add(root, label(
-            "Primero prueba cada marca por separado. Xiaomi puede utilizar un código " +
-            "que alterna encendido y apagado; solo actívala si has comprobado que te interesa. " +
-            "La aplicación no sabe si una TV está encendida. Los infrarrojos requieren " +
-            "apuntar hacia el receptor y no atraviesan paredes.",
-            13, GRAY, 0), 8);
-
-        mainButton.setOnClickListener(v -> {
-            List<String> names = new ArrayList<>();
-            for (String brand : BRANDS)
-                if (selected.get(brand).isChecked()) names.add(brand);
-            send(names);
+        add(root, label("OTRAS MARCAS", 13, GREEN, true), 9);
+        Button expand = button("Ver más marcas ▼", PANEL, 16);
+        addHeight(root, expand, 52, 10);
+        otherBrands = new LinearLayout(this);
+        otherBrands.setOrientation(LinearLayout.VERTICAL);
+        otherBrands.setVisibility(View.GONE);
+        add(root, otherBrands, 12);
+        for (String brand : catalog.brands()) {
+            if (!Arrays.asList(HOME).contains(brand)) addBrand(otherBrands, brand, ready);
+        }
+        expand.setOnClickListener(v -> {
+            if (otherBrands.getVisibility() == View.GONE) {
+                otherBrands.setVisibility(View.VISIBLE);
+                expand.setText("Ocultar otras marcas ▲");
+            } else {
+                otherBrands.setVisibility(View.GONE);
+                expand.setText("Ver más marcas ▼");
+            }
         });
-        setContentView(scroll);
+        add(root, label("CÓMO FUNCIONA", 13, GREEN, true), 9);
+        add(root, label("El botón universal solo envía códigos identificados como OFF. " +
+                "Los códigos POWER que alternan encendido y apagado se pueden probar por separado, " +
+                "pero nunca se envían automáticamente.\n\n" +
+                "Pulsa «Probar» en una marca y recorre sus códigos. Si uno apaga tu televisor, " +
+                "puedes guardarlo para que el botón principal lo priorice. Puedes guardar " +
+                "más de uno para televisores diferentes de la misma marca.\n\n" +
+                "La señal infrarroja necesita apuntar al receptor. No atraviesa paredes. " +
+                "La compatibilidad depende del modelo. Fuentes: Flipper-IRDB (CC0), " +
+                "Tasmota, RemoteCentral y códigos LG webOS publicados.", 13, DIM, false), 10);
+        bigButton.setOnClickListener(v -> sendAll());
+        setContentView(sv);
     }
 
-    private void send(List<String> brands) {
-        if (sending) return;
-        if (brands.isEmpty()) {
-            status.setTextColor(RED);
-            status.setText("Selecciona al menos una marca.");
-            return;
+    private void addBrand(LinearLayout root, String brand, boolean ready) {
+        int nOff = catalog.count(brand, false);
+        int nToggle = catalog.count(brand, true);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(13), dp(7), dp(13), dp(10));
+        card.setBackground(shape(PANEL, 14));
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        card.addView(row);
+        CheckBox cb = new CheckBox(this);
+        cb.setText(brand);
+        cb.setTextColor(WHITE);
+        cb.setTextSize(18);
+        cb.setButtonTintList(ColorStateList.valueOf(GREEN));
+        boolean own = Arrays.asList(HOME).contains(brand);
+        cb.setChecked(prefs.getBoolean("brand:"+brand, own && nOff > 0));
+        cb.setOnCheckedChangeListener((b, value) -> prefs.edit().putBoolean("brand:"+brand, value).apply());
+        row.addView(cb, new LinearLayout.LayoutParams(0, dp(51), 1f));
+        checked.put(brand, cb);
+        Button test = button("Probar", Color.rgb(60, 74, 97), 14);
+        test.setEnabled(ready && (nOff+nToggle>0));
+        row.addView(test, new LinearLayout.LayoutParams(dp(92), dp(43)));
+        test.setOnClickListener(v -> openTester(brand));
+        TextView sub = label(nOff + " apagados específicos · " + nToggle + " POWER (alternativos)", 12, DIM, false);
+        add(card, sub, 2);
+        if (nOff == 0) {
+            add(card, label("Sin OFF independiente: no se enviará desde «Apagar todas».", 12, RED, false), 3);
         }
-        if (ir == null || !ir.hasIrEmitter()) {
-            status.setText("No se ha detectado el infrarrojo del móvil.");
-            return;
-        }
-        final List<IrCodes.Signal> signals = new ArrayList<>();
-        for (String name : brands) signals.addAll(IrCodes.forBrand(name));
+        add(root, card, 9);
+    }
+
+    private void openTester(String brand) {
+        List<IrCatalog.Entry> discrete = catalog.get(brand, false);
+        List<IrCatalog.Entry> power = catalog.get(brand, true);
+        final boolean[] isPower = {false};
+        final int[] index = {0};
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(20), dp(12), dp(20), dp(10));
+        TextView desc = label("", 15, Color.DKGRAY, false);
+        add(box, desc, 13);
+        Button send = button("Enviar código", RED, 16);
+        addHeight(box, send, 56, 11);
+        Button next = button("Siguiente código →", PANEL, 16);
+        addHeight(box, next, 53, 12);
+        Button save = button("✓ Guardar este OFF", Color.rgb(26, 128, 84), 15);
+        addHeight(box, save, 53, 12);
+        Button switchMode = button("Ver botones POWER alternativos", PANEL, 14);
+        addHeight(box, switchMode, 53, 8);
+        final Runnable[] redraw = new Runnable[1];
+        redraw[0] = () -> {
+            List<IrCatalog.Entry> list = isPower[0] ? power : discrete;
+            if (index[0] >= list.size()) index[0] = 0;
+            if (list.isEmpty()) {
+                desc.setText(isPower[0] ? "No hay códigos POWER registrados." :
+                        "No hay códigos OFF específicos. Prueba los POWER por separado, con la TV encendida.");
+            } else {
+                IrCatalog.Entry e = list.get(index[0]);
+                desc.setText((isPower[0] ? "⚠ POWER: puede encender la televisión" : "APAGADO INDEPENDIENTE") +
+                        "\nCódigo " + (index[0]+1) + " de " + list.size() +
+                        "\nOrigen/modelo: " + e.model +
+                        (isSaved(brand, e) ? "\n✓ Guardado" : ""));
+            }
+            send.setEnabled(!list.isEmpty());
+            next.setEnabled(list.size() > 1);
+            save.setVisibility(!isPower[0] && !list.isEmpty() ? View.VISIBLE : View.GONE);
+            switchMode.setText(isPower[0] ? "Volver a apagados independientes" : "Ver POWER alternativos (con riesgo)");
+        };
+        send.setOnClickListener(v -> {
+            List<IrCatalog.Entry> list = isPower[0] ? power : discrete;
+            if (list.isEmpty()) return;
+            IrCatalog.Entry e = list.get(index[0]);
+            sendOne(e);
+            desc.setText(desc.getText() + "\n→ Señal enviada; comprueba la TV.");
+        });
+        next.setOnClickListener(v -> {
+            List<IrCatalog.Entry> list = isPower[0] ? power : discrete;
+            if (!list.isEmpty()) index[0] = (index[0]+1)%list.size();
+            redraw[0].run();
+        });
+        save.setOnClickListener(v -> {
+            List<IrCatalog.Entry> list = discrete;
+            if (list.isEmpty()) return;
+            saveWorking(brand,list.get(index[0]));
+            redraw[0].run();
+        });
+        switchMode.setOnClickListener(v -> {
+            isPower[0] = !isPower[0];
+            index[0] = 0;
+            redraw[0].run();
+        });
+        redraw[0].run();
+        new AlertDialog.Builder(this).setTitle("Probar " + brand)
+            .setView(box).setPositiveButton("Cerrar", null).show();
+    }
+
+    private String prefKey(String brand) { return "working_off:" + brand; }
+    private boolean isSaved(String brand, IrCatalog.Entry e) {
+        return prefs.getStringSet(prefKey(brand), Collections.emptySet()).contains(e.key);
+    }
+    private void saveWorking(String brand, IrCatalog.Entry e) {
+        Set<String> keys = new LinkedHashSet<>(prefs.getStringSet(prefKey(brand), Collections.emptySet()));
+        keys.add(e.key);
+        prefs.edit().putStringSet(prefKey(brand), keys).apply();
+    }
+
+    private void sendOne(IrCatalog.Entry e) {
+        if (sending || ir == null || !ir.hasIrEmitter()) return;
         sending = true;
-        mainButton.setEnabled(false);
-        status.setTextColor(GREEN);
-        status.setText("Enviando… mantén el móvil apuntando");
-        detail.setText("");
         new Thread(() -> {
-            int sent = 0;
-            for (IrCodes.Signal sig : signals) {
-                try { ir.transmit(frequency(sig.hertz), sig.pattern); sent++; }
-                catch (RuntimeException ignored) { }
-                try { Thread.sleep(95); }
+            try { send(e.signal); }
+            catch (Exception ignored) { }
+            runOnUiThread(() -> { sending=false; });
+        }, "tv-ir-probe").start();
+    }
+
+    private void sendAll() {
+        if (sending) return;
+        final List<IrCatalog.Entry> queue = new ArrayList<>();
+        int withoutOff = 0;
+        for (Map.Entry<String,CheckBox> item: checked.entrySet()) {
+            if (!item.getValue().isChecked()) continue;
+            String brand = item.getKey();
+            List<IrCatalog.Entry> entries = catalog.get(brand, false);
+            if (entries.isEmpty()) { withoutOff++; continue; }
+            Set<String> saved = prefs.getStringSet(prefKey(brand), Collections.emptySet());
+            int old = queue.size();
+            if (!saved.isEmpty()) {
+                for (IrCatalog.Entry e : entries)
+                    if (saved.contains(e.key)) queue.add(e);
+            }
+            if (queue.size() == old) queue.addAll(entries);
+        }
+        if (queue.isEmpty()) {
+            status.setTextColor(RED);
+            status.setText("No hay códigos OFF disponibles para las marcas elegidas.");
+            return;
+        }
+        final int excluded = withoutOff;
+        bigButton.setEnabled(false);
+        sending = true;
+        status.setTextColor(GREEN);
+        status.setText("Enviando " + queue.size() + " códigos… Mantén apuntado el móvil.");
+        new Thread(() -> {
+            int completed = 0;
+            for (IrCatalog.Entry e : queue) {
+                try { send(e.signal); completed++; }
+                catch (Exception ignored) { }
+                if (completed % 8 == 0) {
+                    final int sent = completed;
+                    runOnUiThread(() -> status.setText("Enviados " + sent + "/" + queue.size() + ". Sigue apuntando…"));
+                }
+                try { Thread.sleep(90); }
                 catch (InterruptedException ex) { Thread.currentThread().interrupt(); break; }
             }
-            final int successful = sent;
+            final int sent = completed;
             runOnUiThread(() -> {
                 sending = false;
-                mainButton.setEnabled(ir != null && ir.hasIrEmitter());
-                status.setText(successful == signals.size() ?
-                        "Señales enviadas" : "No se pudieron enviar todas las señales");
-                status.setTextColor(successful == signals.size() ? GREEN : RED);
-                detail.setText(successful + " de " + signals.size() +
-                        " señales enviadas. Comprueba la televisión.");
+                bigButton.setEnabled(ir != null && ir.hasIrEmitter());
+                status.setTextColor(GREEN);
+                status.setText("Enviados " + sent + " de " + queue.size() + " códigos OFF." +
+                        (excluded > 0 ? " " + excluded + " marca(s) sin OFF independiente." : ""));
             });
-        }, "infrared-sender").start();
+        }, "tv-ir-all").start();
     }
 
-    private int frequency(int desired) {
+    private void send(IrCodes.Signal signal) {
+        if (ir == null || !ir.hasIrEmitter()) return;
+        int freq = nearestFrequency(signal.hertz);
+        int reps = signal.name.startsWith("SIRC") || signal.name.startsWith("Sony") ? 3 : 1;
+        for (int i = 0; i < reps; i++) ir.transmit(freq, signal.pattern);
+    }
+    private int nearestFrequency(int hz) {
         try {
             ConsumerIrManager.CarrierFrequencyRange[] ranges = ir.getCarrierFrequencies();
-            if (ranges == null || ranges.length == 0) return desired;
-            int best = desired, delta = Integer.MAX_VALUE;
-            for (ConsumerIrManager.CarrierFrequencyRange r : ranges) {
-                int selected = Math.max(r.getMinFrequency(), Math.min(r.getMaxFrequency(), desired));
-                if (Math.abs(selected - desired) < delta) {
-                    best = selected; delta = Math.abs(selected - desired);
-                }
+            if (ranges == null || ranges.length == 0) return hz;
+            int best = hz, delta = Integer.MAX_VALUE;
+            for (ConsumerIrManager.CarrierFrequencyRange range : ranges) {
+                int target = Math.max(range.getMinFrequency(), Math.min(range.getMaxFrequency(), hz));
+                if (Math.abs(target-hz)<delta) { delta=Math.abs(target-hz); best=target; }
             }
             return best;
-        } catch (RuntimeException ex) {
-            return desired;
-        }
+        } catch (RuntimeException ex) { return hz; }
     }
-    private TextView label(String s, int size, int color, int style) {
-        TextView v = new TextView(this);
-        v.setText(s); v.setTextSize(size); v.setTextColor(color);
-        v.setTypeface(Typeface.DEFAULT, style);
-        return v;
+
+    private TextView label(String s,int size,int color,boolean bold) {
+        TextView tv = new TextView(this);
+        tv.setText(s);tv.setTextSize(size);tv.setTextColor(color);
+        if (bold) tv.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        return tv;
     }
-    private GradientDrawable bg(int color, int radius) {
+    private GradientDrawable shape(int color, int radius) {
         GradientDrawable d = new GradientDrawable();
-        d.setColor(color); d.setCornerRadius(dp(radius));
-        return d;
+        d.setColor(color); d.setCornerRadius(dp(radius)); return d;
     }
-    private void add(LinearLayout root, View view, int margin) {
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
-        p.bottomMargin = dp(margin);
-        root.addView(view, p);
+    private Button button(String title, int color, int textSize) {
+        Button btn = new Button(this);btn.setText(title);btn.setTextSize(textSize);
+        btn.setTextColor(Color.WHITE);btn.setAllCaps(false);
+        btn.setBackground(shape(color,14));return btn;
     }
-    private void addHeight(LinearLayout root, View view, int height, int margin) {
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, dp(height));
-        p.bottomMargin = dp(margin);
-        root.addView(view, p);
+    private void add(LinearLayout root,View v,int gap) {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1,-2);
+        p.bottomMargin=dp(gap);root.addView(v,p);
     }
-    private int dp(int n) {
-        return (int) (getResources().getDisplayMetrics().density * n + .5f);
+    private void addHeight(LinearLayout root,View v,int height,int gap) {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1,dp(height));
+        p.bottomMargin=dp(gap);root.addView(v,p);
     }
+    private int dp(int size) { return (int)(getResources().getDisplayMetrics().density * size+0.5f); }
 }
