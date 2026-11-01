@@ -2,7 +2,7 @@ package es.apagatv;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.Context;
+import android.content.Context;\nimport android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -73,6 +73,11 @@ public final class MainActivity extends Activity {
                 catalog.toggleTotal() + " botones POWER para prueba", 13, DIM, false);
         stats.setGravity(Gravity.CENTER);
         add(root, stats, 23);
+        add(root, label("CALEFACTOR S&P HE-1800", 13, GREEN, true), 8);
+        Button heater = button("♨  BUSCAR MANDO DEL CALEFACTOR", PANEL, 16);
+        addHeight(root, heater, 64, 8);
+        add(root, label("Probador de códigos infrarrojos de otros calefactores. No se ha identificado todavía el mando original.", 13, DIM, false), 21);
+        heater.setOnClickListener(v -> startActivity(new Intent(this, HeaterScannerActivity.class)));
         add(root, label("TUS MARCAS", 13, GREEN, true), 8);
         add(root, label("Selecciona las que quieres incluir en el botón universal.", 14, DIM, false), 10);
         for (String brand : HOME) {
