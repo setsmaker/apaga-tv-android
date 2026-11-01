@@ -29,8 +29,8 @@ jobs:
         shell: bash
         run: |
           git clone --quiet --depth 1 --filter=blob:none --sparse https://github.com/Lucaslhm/Flipper-IRDB.git /tmp/flipper-irdb
-          git -C /tmp/flipper-irdb sparse-checkout set TVs Universal_TV_Remotes
-          python3 tools/generate_catalog.py
+          git -C /tmp/flipper-irdb sparse-checkout set TVs Universal_TV_Remotes Heaters
+          python3 tools/generate_catalog.py\n          python3 tools/generate_heater_catalog.py
       - name: Verificar patrones IR en Java
         shell: bash
         run: |
@@ -45,4 +45,4 @@ jobs:
           name: ApagaTV-apk
           path: |
             app/build/outputs/apk/debug/app-debug.apk
-            ir-catalog-report.txt
+            ir-catalog-report.txt\n            heater-scan-report.txt
